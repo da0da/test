@@ -36,20 +36,22 @@ class BinanceManager:
         return BinanceManager(client)
 
     async def _load_klines(self, pair: Pair) -> None:
-        klines_raw = await self._client.futures_klines(symbol=pair.name, interval=config.INTERVAL, limit=config.LIMIT)
-        for kline_raw in klines_raw:
-            kline = KLine.from_request(kline_raw)
-            pair.add_kline(kline)
+        async with self._semaphore:
+            klines_raw = await self._client.futures_klines(symbol=pair.name, interval=config.INTERVAL, limit=config.LIMIT)
+            for kline_raw in klines_raw:
+                kline = KLine.from_request(kline_raw)
+                pair.add_kline(kline)
+            tasks.create_task(PairUpdater().create_pair_socket(pair, self._binance_socket_manager))
 
     async def load_pairs_data(self) -> None:
         exchange_info = (await self._client.futures_exchange_info()).get("symbols")
 
+        tasks_list = []
         for pair_data in exchange_info:
             pair_name = pair_data["symbol"]
             if pair_name not in ["BTCUSDT", "ETHUSDT"]:
                 continue
             pair = Pair.create_from_raw_data(pair_name, pair_data)
-            async with self._semaphore:
-                await self._load_klines(pair)
+            tasks_list.append(self._load_klines(pair))
             self._pairs.add_pair(pair)
-            tasks.create_task(PairUpdater().create_pair_socket(pair, self._binance_socket_manager))
+        await asyncio.gather(*tasks_list)
