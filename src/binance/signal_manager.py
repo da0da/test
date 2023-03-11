@@ -22,8 +22,8 @@ class SignalManager:
             btc = pairs.get_pair("BTCUSDT")
             eth = pairs.get_pair("ETHUSDT")
 
-            last_kline_btc = btc.get_klines[-18]
-            last_kline_eth = eth.get_klines[-18]
+            last_kline_btc = btc.get_klines[-1]
+            last_kline_eth = eth.get_klines[-1]
 
             up_btc_change = (last_kline_btc.high - last_kline_btc.open) / last_kline_btc.open
             down_btc_change = (last_kline_btc.low - last_kline_btc.open) / last_kline_btc.open
